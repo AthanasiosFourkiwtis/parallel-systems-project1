@@ -9,7 +9,7 @@
 
 
 /* Allocate, and shuffle an array of all integers up to n */
-int *random_array(int n) /*ftiaxnei pinaka me times kai anakatevei tis times tyxaia*/
+int *random_array(int n) /* builds an array of values and shuffles them randomly */
 {
 	int i, j, *arr, t;
 
@@ -29,7 +29,7 @@ int *random_array(int n) /*ftiaxnei pinaka me times kai anakatevei tis times tyx
 
 
 /* Call this to make sure the array is sorted correctly */
-int check_sorted(int *arr, int n)  /*gia na elegxei an o pinakas vgike swsta taksinomhmenos*/
+int check_sorted(int *arr, int n)  /* checks that the array came out correctly sorted */
 {
 	int i;
 	for (i = 0; i < n; i++)
@@ -40,7 +40,7 @@ int check_sorted(int *arr, int n)  /*gia na elegxei an o pinakas vgike swsta tak
 
 
 /* Merge the two halves of arr using tmp as temporary storage */
-void merge(int *arr, int n, int *tmp) /* kanei thn teliki merge ylopoihsh pernei 2 hdh taksinomhmena kommatia kai t enonei se ena megalitero*/
+void merge(int *arr, int n, int *tmp) /* the final merge step: takes 2 already-sorted chunks and joins them into a bigger one */
 {
 	int i = 0, j = n/2, k = 0;
 
@@ -56,7 +56,7 @@ void merge(int *arr, int n, int *tmp) /* kanei thn teliki merge ylopoihsh pernei
 
 
 /* Simple insertion sort which is quite faster on small arrays */
-void insertion_sort(int *arr, int n) /*otan exw mikrous pinakes thn xrhsimopoiw giati einai pio grhgorh*/
+void insertion_sort(int *arr, int n) /* used on small arrays, where it is faster */
 {
 	int i, j, x;
 
@@ -72,17 +72,17 @@ void insertion_sort(int *arr, int n) /*otan exw mikrous pinakes thn xrhsimopoiw 
 /* Sequential, recursive implementation */
 void mergesort_serial(int *arr, int n, int *tmp)
 {
-	if (n < 2) return; /*an o pinakas eiani 0 h 1 einai hdh taksinomhmenos*/
+	if (n < 2) return; /* an array of 0 or 1 elements is already sorted */
 
 	/* If n is small, then merge sort is very slow... */
-	if (n > 32) /*orio gia na xrhsimopoiw merge sort*/
+	if (n > 32) /* threshold for using merge sort */
 	{
 		/* Sort the first half */
-		mergesort_serial(arr, n/2, tmp); /*h prwth taksinomei to prwto miso */
+		mergesort_serial(arr, n/2, tmp); /* the first call sorts the first half */
 
 		/* Sort the second half */
-		mergesort_serial(arr+n/2, n-n/2, tmp+n/2); /* h deyterh taksinomei to deytero miso */
-		/*kai etsi den eksartontai h mia apo thn allh */
+		mergesort_serial(arr+n/2, n-n/2, tmp+n/2); /* the second call sorts the second half */
+		/* so neither depends on the other */
 	
 		/* merge sorted halves into a totally sorted array */
 		merge(arr, n, tmp); 
@@ -90,8 +90,8 @@ void mergesort_serial(int *arr, int n, int *tmp)
 	else
 		insertion_sort(arr, n);
 }
-#define TASK_CUTOFF 8192   /*b erwthma*/
-#define FINAL_CUTOFF 32768 /*c erwthma*/
+#define TASK_CUTOFF 8192   /* part B */
+#define FINAL_CUTOFF 32768 /* part C */
 /* Task-based OpenMP implementation */
 void mergesort_parallel(int *arr, int n, int *tmp)
 {

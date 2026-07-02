@@ -10,27 +10,27 @@ long int count,      /* number of primes */
 
 
 void serial_primes(long int n) {
-	long int i, num, divisor, quotient, remainder; /* topikes metavlites */
+	long int i, num, divisor, quotient, remainder; /* local variables */
 
 	if (n < 2) return;
-	count = 1;                         /* to 2 einai o prwtos prwtos arithmos */
+	count = 1;                         /* 2 is the first prime */
 	lastprime = 2;
 
-	for (i = 0; i < (n-1)/2; ++i) {    /* gia kathe peritto arithmo */
+	for (i = 0; i < (n-1)/2; ++i) {    /* for every odd number */
 		num = 2*i + 3;
 
 		divisor = 1;
 		do 
 		{
-			divisor += 2;                  /* arxikopoieitai sto 1 kai meta +=2 gia na ksekinisei me 3 kai kathe loop na anevenei ana 2 px 3 ,5,7,.. */
-			quotient  = num / divisor;     /* ypologizw to phliko gia na synexisw ton elegxo mexri na perasw to simeio quotient/divisor */
-			remainder = num % divisor;    /* ypologizei ypolipo diareshs gia na elegxw an o arithmos exei akrivh diaireth*/
-		} while (remainder && divisor <= quotient); /* synexizw oso den exei vrethei akrivis diaireths kai oso den exw perasei to simeio tou sqrt(num) */
+			divisor += 2;                  /* starts at 1 and then +=2, so it begins at 3 and steps by 2 each loop: 3, 5, 7, ... */
+			quotient  = num / divisor;     /* compute the quotient so the check can continue until we pass the quotient/divisor point */
+			remainder = num % divisor;    /* compute the remainder to check whether the number has an exact divisor */
+		} while (remainder && divisor <= quotient); /* keep going while no exact divisor is found and sqrt(num) is not yet passed */
 
-		if (remainder || divisor == num) /* an den vrethike diaireths, o num einai prwtos */
+		if (remainder || divisor == num) /* if no divisor was found, num is prime */
 		{
-			count++; /* ayksanei to plhthos twn prwtwn*/
-			lastprime = num; /* enhmerwnei to megalitero prwto poy vrethike mexri twra*/
+			count++; /* bump the prime count */
+			lastprime = num; /* update the largest prime found so far */
 		}
 	}
 }
@@ -38,16 +38,16 @@ void serial_primes(long int n) {
 
 void openmp_primes(long int n) {
 	long int i, num, divisor, quotient, remainder;
-	long int topiko_count,topiko_lastprime; /*gia na min doulevw kateutheian me tis global*/
+	long int local_count,local_lastprime; /* so the loop never touches the globals directly */
 	if (n < 2) return;
-	topiko_count = 1;                         /* 2 is the first prime */
-	topiko_lastprime = 2;
+	local_count = 1;                         /* 2 is the first prime */
+	local_lastprime = 2;
 	
 	#pragma omp parallel for private(num, divisor, quotient, remainder) \
-                         reduction(+:topiko_count) reduction(max:topiko_lastprime) \
+                         reduction(+:local_count) reduction(max:local_lastprime) \
                          schedule(runtime)
 	
-	 for (i = 0; i < (n-1)/2; ++i) { /* ayto to kommati parallhlopoiw gt se kathe epanalispi ftiaxnw diaforetiko perrito arithmo*/
+	 for (i = 0; i < (n-1)/2; ++i) { /* this is the parallelized part: every iteration produces a different odd number */
         num = 2*i + 3;
 
         divisor = 1;
@@ -60,14 +60,14 @@ void openmp_primes(long int n) {
 
         if (remainder || divisor == num)
         {
-            topiko_count++;
-            if (num > topiko_lastprime)
-                topiko_lastprime = num;
+            local_count++;
+            if (num > local_lastprime)
+                local_lastprime = num;
         }
     }
 
-    count = topiko_count;
-    lastprime = topiko_lastprime;
+    count = local_count;
+    lastprime = local_lastprime;
 }
 
 int main()

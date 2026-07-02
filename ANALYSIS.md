@@ -1,84 +1,85 @@
-# Ανάλυση Εργασίας #1 — MYE023
+# Assignment #1 Analysis — MYE023
 
-## Ανάλυση της εκφώνησης
+## Breaking down the assignment
 
-Η εργασία ζητά την παραλληλοποίηση **δύο έτοιμων σειριακών προγραμμάτων** με
-χρήση OpenMP. Βασικός περιορισμός σε όλα τα μέρη: **δεν αλλάζει ο αλγόριθμος**,
-μοιράζεται μόνο σωστά η δουλειά στα νήματα. Ζητούνται χρονομετρήσεις με 1, 2, 3
-και 4 νήματα, σύγκριση με την καθαρή σειριακή έκδοση, και πλήρης αναφορά με
-γραφικές παραστάσεις. Κάθε μέτρηση είναι ο μέσος όρος ≥4 εκτελέσεων σε
-4-πύρηνο μηχάνημα.
+The assignment asks for the parallelization of **two given serial programs**
+using OpenMP. The key constraint throughout: **the algorithm must not change** —
+only the work gets distributed properly across threads. It calls for timings
+with 1, 2, 3, and 4 threads, a comparison against the plain serial version, and
+a full report with charts. Every measurement is the average of ≥4 runs on a
+4-core machine.
 
-### Μέρος 1 — Εύρεση πρώτων αριθμών (40%)
-Δίνεται η `serial_primes()` που μετρά πόσοι πρώτοι υπάρχουν μέχρι το N και ποιος
-είναι ο μεγαλύτερος. Ζητείται η συμπλήρωση της `openmp_primes()` με τον ίδιο
-αλγόριθμο παράλληλα, και πειραματισμός με εναλλακτικούς τρόπους διαμοιρασμού της
-δουλειάς (με αιτιολόγηση της καλύτερης επιλογής).
+### Part 1 — Prime counting (40%)
+`serial_primes()` is provided; it counts how many primes exist up to N and
+which one is the largest. The task is to fill in `openmp_primes()` with the
+same algorithm running in parallel, and to experiment with alternative
+work-sharing policies (justifying the best choice).
 
-### Μέρος 2 — Merge sort (40%)
-Δίνεται αναδρομικός merge sort. Ζητείται η συμπλήρωση της `mergesort_parallel()`
-και της κλήσης της από τη `main()`, ώστε η ταξινόμηση να γίνεται παράλληλα με
-**OpenMP tasks**. Ζητείται πειραματισμός για τη μέγιστη δυνατή επιτάχυνση —
-π.χ. εκμετάλλευση του ότι για μικρούς πίνακες η σειριακή εκτέλεση είναι ταχύτερη.
+### Part 2 — Merge sort (40%)
+A recursive merge sort is provided. The task is to fill in
+`mergesort_parallel()` and its invocation from `main()`, so the sort runs in
+parallel with **OpenMP tasks**. Experimentation is expected to squeeze out the
+maximum speedup — e.g. exploiting the fact that for small arrays the serial
+version is faster.
 
-### Μέρος 3 — Taskloop / clauses (20%)
-Μελέτη των clauses `final` και `mergeable` του OpenMP 5.0, γραπτή περιγραφή τους
-(1–2 σελίδες) και εφαρμογή τους στο merge sort για να εξεταστεί αν υπάρχει
-βελτίωση.
+### Part 3 — Taskloop / clauses (20%)
+Study the `final` and `mergeable` clauses of OpenMP 5.0, describe them in
+writing (1–2 pages), and apply them to the merge sort to see whether they
+bring any improvement.
 
-## Τι έγινε
+## What was done
 
-### Μέρος 1 — `primes.c`
-Στην `openmp_primes()` ο βρόχος των περιττών αριθμών μοιράζεται με
-`#pragma omp parallel for`. Επειδή κάθε επανάληψη παράγει ανεξάρτητο αριθμό
-`num = 2*i + 3`, δεν υπάρχουν εξαρτήσεις μεταξύ των επαναλήψεων.
+### Part 1 — `primes.c`
+In `openmp_primes()` the loop over odd numbers is shared out with
+`#pragma omp parallel for`. Since every iteration produces an independent
+number `num = 2*i + 3`, there are no cross-iteration dependencies.
 
-- Οι βοηθητικές μεταβλητές (`num, divisor, quotient, remainder`) δηλώθηκαν
-  `private` ώστε κάθε νήμα να έχει δικό του αντίγραφο.
-- Το πλήθος των πρώτων συγκεντρώνεται με `reduction(+:...)` και ο μεγαλύτερος
-  πρώτος με `reduction(max:...)`, αποφεύγοντας συνθήκες ανταγωνισμού (race
-  conditions) στις global μεταβλητές.
-- Χρησιμοποιήθηκαν τοπικές μεταβλητές (`topiko_count`, `topiko_lastprime`) αντί
-  των global μέσα στον παράλληλο βρόχο, και η αντιγραφή στις global γίνεται στο
-  τέλος.
-- Επιλέχθηκε `schedule(runtime)` ώστε ο τρόπος διαμοιρασμού να ρυθμίζεται από τη
-  μεταβλητή περιβάλλοντος `OMP_SCHEDULE` (static / dynamic / guided) χωρίς
-  επαναμεταγλώττιση. Το φορτίο ανά επανάληψη είναι **ανομοιόμορφο** (οι μεγάλοι
-  αριθμοί απαιτούν περισσότερες διαιρέσεις), άρα ένα δυναμικό schedule
-  ισορροπεί καλύτερα το φορτίο — η τελική επιλογή τεκμηριώνεται στην αναφορά
-  με βάση τις μετρήσεις.
+- The helper variables (`num, divisor, quotient, remainder`) were declared
+  `private`, so each thread gets its own copy.
+- The prime count is accumulated with `reduction(+:...)` and the largest
+  prime with `reduction(max:...)`, avoiding race conditions on the global
+  variables.
+- Local variables (`local_count`, `local_lastprime`) were used inside the
+  parallel loop instead of the globals, with the copy back to the globals
+  happening at the end.
+- `schedule(runtime)` was chosen so the work-sharing policy can be set
+  through the `OMP_SCHEDULE` environment variable (static / dynamic / guided)
+  without recompiling. The per-iteration workload is **uneven** (larger
+  numbers need more divisions), so a dynamic schedule balances the load
+  better — the final choice is justified in the report based on the
+  measurements.
 
-### Μέρος 2 — `mergesort.c`
-Η `mergesort_parallel()` υλοποιήθηκε με OpenMP tasks:
+### Part 2 — `mergesort.c`
+`mergesort_parallel()` was implemented with OpenMP tasks:
 
-- Τα δύο μισά του πίνακα ταξινομούνται το καθένα σε ξεχωριστό
-  `#pragma omp task`, και ακολουθεί `#pragma omp taskwait` πριν το τελικό
-  `merge()`, ώστε να έχουν ολοκληρωθεί και τα δύο.
-- Η κλήση από τη `main()` γίνεται μέσα σε `#pragma omp parallel` με
-  `#pragma omp single`, ώστε τα tasks να τα δημιουργεί ένα νήμα και να τα
-  εκτελεί η ομάδα.
-- **Cutoff (`TASK_CUTOFF = 8192`):** κάτω από αυτό το μέγεθος καλείται απευθείας
-  η σειριακή `mergesort_serial()`. Έτσι αποφεύγεται το overhead δημιουργίας
-  tasks για μικρά κομμάτια, όπου η σειριακή εκτέλεση είναι ταχύτερη — αυτό είναι
-  ακριβώς η βελτιστοποίηση που υποδεικνύει η εκφώνηση.
+- The two halves of the array are each sorted in their own
+  `#pragma omp task`, followed by a `#pragma omp taskwait` before the final
+  `merge()`, ensuring both have finished.
+- The call from `main()` sits inside `#pragma omp parallel` with
+  `#pragma omp single`, so one thread creates the tasks and the whole team
+  executes them.
+- **Cutoff (`TASK_CUTOFF = 8192`):** below this size the serial
+  `mergesort_serial()` is called directly. This avoids the task-creation
+  overhead on small chunks, where serial execution is faster — exactly the
+  optimization the handout hints at.
 
-### Μέρος 3 — clauses `final` & `mergeable`
-Εφαρμόστηκαν στο merge sort με conditional compilation (`#ifdef
+### Part 3 — `final` & `mergeable` clauses
+Applied to the merge sort behind conditional compilation (`#ifdef
 USE_FINAL_MERGEABLE`):
 
-- Όταν οριστεί το `USE_FINAL_MERGEABLE`, τα tasks παίρνουν
+- With `USE_FINAL_MERGEABLE` defined, tasks get
   `final(n <= FINAL_CUTOFF) mergeable`.
-- Η `final` σταματά τη δημιουργία νέων (εμφωλευμένων) tasks κάτω από το όριο
-  `FINAL_CUTOFF = 32768`: το task γίνεται «τελικό» και η υπόλοιπη αναδρομή
-  εκτελείται σειριακά μέσα του.
-- Η `mergeable` επιτρέπει στο runtime, όταν το task είναι final/included, να
-  μην δημιουργήσει νέο data environment αλλά να επαναχρησιμοποιήσει αυτό του
-  γονέα, μειώνοντας το overhead.
-- Η σύγκριση των δύο εκδόσεων (με/χωρίς τα clauses) και το αν υπάρχει πρακτική
-  βελτίωση παρουσιάζεται στην αναφορά.
+- `final` stops the creation of new (nested) tasks below the
+  `FINAL_CUTOFF = 32768` threshold: the task becomes "final" and the rest of
+  the recursion runs serially inside it.
+- `mergeable` lets the runtime, when the task is final/included, skip
+  creating a new data environment and reuse the parent's instead, cutting
+  overhead.
+- The comparison of the two builds (with/without the clauses) and whether
+  there is any practical gain is presented in the report.
 
-## Παραδοτέα
+## Deliverables
 
-- `primes.c`, `mergesort.c` — πηγαίος κώδικας
-- `MYE023_Ergasia1.pdf` — πλήρης αναφορά με χρονομετρήσεις, γραφικές
-  παραστάσεις και συζήτηση αποτελεσμάτων
+- `primes.c`, `mergesort.c` — source code
+- `MYE023_Ergasia1.pdf` — full report with timings, charts, and discussion
+  of the results

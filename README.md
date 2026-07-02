@@ -1,59 +1,58 @@
-# MYE023 – Παράλληλα Συστήματα και Προγραμματισμός — Εργασία #1 (OpenMP)
+# MYE023 – Parallel Systems and Programming — Assignment #1 (OpenMP)
 
-Παραλληλοποίηση δύο σειριακών προγραμμάτων με OpenMP, χρονομέτρηση και
-σύγκριση με τη σειριακή έκδοση.
+Parallelizing two serial programs with OpenMP, timing them, and comparing
+against the serial versions.
 
-**Φοιτητής:** Φουρκιώτης Αθανάσιος (ΑΜ 4940)
-**Ακαδημαϊκό έτος:** 2025–26 · **Διδάσκων:** Βασίλειος Δημακόπουλος
+**Student:** Athanasios Fourkiotis (ID 4940)
+**Academic year:** 2025–26 · **Instructor:** Vassilios Dimakopoulos
 
-## Περιεχόμενα
+## Contents
 
-| Αρχείο | Περιγραφή |
+| File | Description |
 |---|---|
-| `primes.c` | Εύρεση πρώτων αριθμών — σειριακή + παράλληλη (OpenMP) έκδοση |
-| `mergesort.c` | Merge sort — σειριακή + παράλληλη (OpenMP tasks) έκδοση |
-| `hw1.pdf` | Εκφώνηση της εργασίας |
-| `MYE023_Ergasia1.pdf` | Γραπτή αναφορά με χρονομετρήσεις, γραφικές παραστάσεις και συζήτηση |
-| `*.exe` | Μεταγλωττισμένα εκτελέσιμα (Windows) |
+| `primes.c` | Prime counting — serial + parallel (OpenMP) version |
+| `mergesort.c` | Merge sort — serial + parallel (OpenMP tasks) version |
+| `hw1.pdf` | Assignment handout |
+| `MYE023_Ergasia1.pdf` | Written report with timings, charts, and discussion |
+| `*.exe` | Compiled executables (Windows) |
 
-## Μέρος 1 — Παραλληλοποίηση εύρεσης πρώτων αριθμών (40%)
+## Part 1 — Parallelizing prime counting (40%)
 
-Η συνάρτηση `openmp_primes()` παραλληλοποιεί τον βρόχο εύρεσης πρώτων χωρίς
-αλλαγή του αλγορίθμου:
+`openmp_primes()` parallelizes the prime-finding loop without changing the
+algorithm:
 
-- `#pragma omp parallel for` στον βρόχο των περιττών αριθμών.
-- `private(num, divisor, quotient, remainder)` για τις βοηθητικές μεταβλητές.
-- `reduction(+:count)` για το πλήθος των πρώτων και `reduction(max:lastprime)`
-  για τον μεγαλύτερο πρώτο.
-- `schedule(runtime)` ώστε να δοκιμαστούν εναλλακτικοί τρόποι διαμοιρασμού
-  (static / dynamic / guided) μέσω της `OMP_SCHEDULE` και να επιλεγεί ο
-  καλύτερος (το φορτίο ανά επανάληψη είναι ανομοιόμορφο).
+- `#pragma omp parallel for` on the loop over odd numbers.
+- `private(num, divisor, quotient, remainder)` for the helper variables.
+- `reduction(+:count)` for the prime count and `reduction(max:lastprime)`
+  for the largest prime.
+- `schedule(runtime)`, so alternative work-sharing policies
+  (static / dynamic / guided) can be tried via `OMP_SCHEDULE` and the best
+  one picked (the per-iteration workload is uneven).
 
-## Μέρος 2 — Merge sort με OpenMP tasks (40%)
+## Part 2 — Merge sort with OpenMP tasks (40%)
 
-Η `mergesort_parallel()` υλοποιεί την αναδρομική ταξινόμηση με OpenMP tasks:
+`mergesort_parallel()` implements the recursive sort with OpenMP tasks:
 
-- Κάθε μισό ταξινομείται σε ξεχωριστό `#pragma omp task`, με `taskwait` πριν
-  το τελικό `merge`.
-- Καλείται μέσα σε `#pragma omp parallel` / `#pragma omp single` από την `main()`.
-- **Cutoff (`TASK_CUTOFF`):** για μικρούς υποπίνακες χρησιμοποιείται η σειριακή
-  έκδοση, αφού η δημιουργία tasks κοστίζει περισσότερο από το όφελος.
+- Each half is sorted in its own `#pragma omp task`, with a `taskwait`
+  before the final `merge`.
+- It is invoked inside `#pragma omp parallel` / `#pragma omp single` from `main()`.
+- **Cutoff (`TASK_CUTOFF`):** small subarrays fall back to the serial
+  version, since spawning tasks costs more than it saves at that size.
 
-## Μέρος 3 — Taskloop / clauses `final` & `mergeable` (20%)
+## Part 3 — Taskloop / `final` & `mergeable` clauses (20%)
 
-Δοκιμή των clauses `final` και `mergeable` (OpenMP 5.0) στο merge sort, με
-conditional compilation:
+Trying out the `final` and `mergeable` clauses (OpenMP 5.0) on the merge
+sort, behind conditional compilation:
 
 ```sh
 gcc -O2 -fopenmp -DUSE_FINAL_MERGEABLE mergesort.c -o mergesort_c
 ```
 
-Όταν οριστεί το `USE_FINAL_MERGEABLE`, τα tasks παίρνουν
-`final(n <= FINAL_CUTOFF) mergeable`, ώστε κάτω από ένα όριο να μην
-δημιουργούνται νέα tasks. Η σχετική συζήτηση και τα αποτελέσματα βρίσκονται
-στην αναφορά.
+With `USE_FINAL_MERGEABLE` defined, tasks get
+`final(n <= FINAL_CUTOFF) mergeable`, so no new tasks are spawned below a
+size threshold. The discussion and results are in the report.
 
-## Μεταγλώττιση
+## Building
 
 ```sh
 gcc -O2 -fopenmp primes.c    -o primes
@@ -61,18 +60,18 @@ gcc -O2 -fopenmp mergesort.c -o mergesort
 gcc -O2 -fopenmp -DUSE_FINAL_MERGEABLE mergesort.c -o mergesort_c
 ```
 
-## Εκτέλεση
+## Running
 
 ```sh
-./primes                       # N ορισμένο στο 10.000.000 (UPTO)
-./mergesort 20                 # πίνακας 20.000.000 στοιχείων (20 * 1024 * 1024)
+./primes                       # N fixed at 10,000,000 (UPTO)
+./mergesort 20                 # array of 20,971,520 elements (20 * 1024 * 1024)
 ```
 
-Δοκιμή με 1, 2, 3 και 4 νήματα:
+Testing with 1, 2, 3, and 4 threads:
 
 ```sh
 OMP_NUM_THREADS=4 OMP_SCHEDULE=dynamic ./primes
 ```
 
-Κάθε μέτρηση λαμβάνεται ως μέσος όρος τουλάχιστον 4 εκτελέσεων, σε
-4-πύρηνο επεξεργαστή.
+Every measurement is the average of at least 4 runs on a
+4-core processor.
