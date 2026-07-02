@@ -1,66 +1,24 @@
-# MYE023 – Parallel Systems and Programming — Assignment #1 (OpenMP)
+# Parallel Systems, Assignment 1 (OpenMP)
 
-Parallelizing two serial programs with OpenMP, timing them and comparing
-with the serial versions.
-
-**Student:** Athanasios Fourkiotis (ID 4940)
-**Academic year:** 2025–26 · **Instructor:** Vassilios Dimakopoulos
+Parallelizing two serial programs with OpenMP, timing them and comparing with the serial versions. Course of the CSE department, University of Ioannina, academic year 2025-26, instructor Vassilios Dimakopoulos. Athanasios Fourkiotis, student ID 4940.
 
 ## What the assignment asks
 
-We're given two working serial programs — one that counts the primes up to N, and a recursive merge sort — and the job is to parallelize them with OpenMP **without changing the algorithm**: the prime loop with a `parallel for` (trying different schedules and justifying the best), the merge sort with **tasks**, and finally to study the `final`/`mergeable` clauses of OpenMP 5.0 and test whether they help. Timings with 1–4 threads, compared against the serial versions.
+We're given two working serial programs, one that counts the primes up to N and a recursive merge sort, and the job is to parallelize them with OpenMP without changing the algorithm. The prime loop goes with a parallel for, trying different schedules and justifying the best one, the merge sort goes with tasks, and the last part studies the final and mergeable clauses of OpenMP 5.0 to see whether they help. Everything gets timed with 1 to 4 threads and compared against the serial versions.
 
 ## How I solved it
 
-For the primes, each loop iteration checks its own independent odd number, so the loop parallelizes directly — the only real issues are the shared counters (solved with `reduction`) and the uneven work per iteration (bigger numbers need more divisions), which is why I left the schedule as `schedule(runtime)` and picked the best via `OMP_SCHEDULE`. For the merge sort, the two halves don't depend on each other, so each one becomes a task and a `taskwait` guards the merge; the important trick is the cutoff — below 8192 elements creating tasks costs more than it saves, so I fall back to the serial sort. The full reasoning, step by step, is in [ANALYSIS.md](ANALYSIS.md).
+For the primes, each loop iteration checks its own independent odd number, so the loop parallelizes directly. The only real issues are the shared counters, which I handled with reductions (a sum reduction for the count and a max reduction for the largest prime, with the helper variables declared private), and the uneven work per iteration, since bigger numbers need more divisions. That's why the schedule is left as schedule(runtime), so I could try static, dynamic and guided through the OMP_SCHEDULE environment variable without recompiling and pick the best from the measurements.
+
+For the merge sort, the two halves of the array don't depend on each other, so each one becomes its own task and a taskwait guards the final merge. The call from main sits inside a parallel region with a single directive, so one thread creates the tasks and the whole team executes them. The important trick is the cutoff: below 8192 elements creating tasks costs more than it saves, so the code falls back to the serial sort there, which is exactly the optimization the assignment hints at.
+
+For the third part, the tasks optionally get final(n <= 32768) mergeable behind an ifdef. The final clause makes a task below the threshold stop spawning nested tasks and run the rest of the recursion serially inside it, and mergeable lets the runtime reuse the parent's data environment instead of making a new one. Whether this actually helps in practice is discussed in the report. The full step-by-step reasoning is in [ANALYSIS.md](ANALYSIS.md).
 
 ## What's in here
 
-| File | What it is |
-|---|---|
-| `primes.c` | Finding primes — serial + parallel (OpenMP) version |
-| `mergesort.c` | Merge sort — serial + parallel (OpenMP tasks) version |
-| `hw1.pdf` | The assignment description |
-| `MYE023_Ergasia1.pdf` | My report with timings, charts and discussion |
-| `*.exe` | Compiled executables (Windows) |
+`primes.c` has the serial and the parallel prime counting, `mergesort.c` has the serial and the task-based merge sort, `hw1.pdf` is the assignment description and `MYE023_Ergasia1.pdf` is my report with the timings, the charts and the discussion. The exe files are compiled Windows executables.
 
-## Part 1 — Parallelizing the prime counting (40%)
-
-`openmp_primes()` parallelizes the prime-finding loop without changing the
-algorithm:
-
-- `#pragma omp parallel for` on the loop over the odd numbers.
-- `private(num, divisor, quotient, remainder)` for the helper variables.
-- `reduction(+:count)` for the prime count and `reduction(max:lastprime)`
-  for the biggest prime.
-- `schedule(runtime)`, so I can try the different scheduling policies
-  (static / dynamic / guided) through `OMP_SCHEDULE` and pick the best
-  one (the work per iteration is uneven).
-
-## Part 2 — Merge sort with OpenMP tasks (40%)
-
-`mergesort_parallel()` does the recursive sort with OpenMP tasks:
-
-- Each half gets sorted in its own `#pragma omp task`, with a `taskwait`
-  before the final `merge`.
-- It's called inside `#pragma omp parallel` / `#pragma omp single` from `main()`.
-- **Cutoff (`TASK_CUTOFF`):** for small subarrays I fall back to the serial
-  version, since making tasks costs more than it saves there.
-
-## Part 3 — Taskloop / `final` & `mergeable` clauses (20%)
-
-Trying the `final` and `mergeable` clauses (OpenMP 5.0) on the merge sort,
-with conditional compilation:
-
-```sh
-gcc -O2 -fopenmp -DUSE_FINAL_MERGEABLE mergesort.c -o mergesort_c
-```
-
-With `USE_FINAL_MERGEABLE` defined, the tasks get
-`final(n <= FINAL_CUTOFF) mergeable`, so below a size limit no new tasks
-get created. The discussion and the results are in the report.
-
-## Build
+## Build and run
 
 ```sh
 gcc -O2 -fopenmp primes.c    -o primes
@@ -68,18 +26,17 @@ gcc -O2 -fopenmp mergesort.c -o mergesort
 gcc -O2 -fopenmp -DUSE_FINAL_MERGEABLE mergesort.c -o mergesort_c
 ```
 
-## Run
+Running them is straightforward. The primes program has N fixed at 10 million and the merge sort takes the array size in millions of elements, so 20 means an array of 20971520 elements:
 
 ```sh
-./primes                       # N is fixed at 10,000,000 (UPTO)
-./mergesort 20                 # array of 20,971,520 elements (20 * 1024 * 1024)
+./primes
+./mergesort 20
 ```
 
-Testing with 1, 2, 3 and 4 threads:
+To test with different thread counts and schedules:
 
 ```sh
 OMP_NUM_THREADS=4 OMP_SCHEDULE=dynamic ./primes
 ```
 
-Every measurement is the average of at least 4 runs on a
-4-core processor.
+Every measurement in the report is the average of at least 4 runs on a 4-core processor.
