@@ -6,6 +6,14 @@ with the serial versions.
 **Student:** Athanasios Fourkiotis (ID 4940)
 **Academic year:** 2025–26 · **Instructor:** Vassilios Dimakopoulos
 
+## What the assignment asks
+
+We're given two working serial programs — one that counts the primes up to N, and a recursive merge sort — and the job is to parallelize them with OpenMP **without changing the algorithm**: the prime loop with a `parallel for` (trying different schedules and justifying the best), the merge sort with **tasks**, and finally to study the `final`/`mergeable` clauses of OpenMP 5.0 and test whether they help. Timings with 1–4 threads, compared against the serial versions.
+
+## How I solved it
+
+For the primes, each loop iteration checks its own independent odd number, so the loop parallelizes directly — the only real issues are the shared counters (solved with `reduction`) and the uneven work per iteration (bigger numbers need more divisions), which is why I left the schedule as `schedule(runtime)` and picked the best via `OMP_SCHEDULE`. For the merge sort, the two halves don't depend on each other, so each one becomes a task and a `taskwait` guards the merge; the important trick is the cutoff — below 8192 elements creating tasks costs more than it saves, so I fall back to the serial sort. The full reasoning, step by step, is in [ANALYSIS.md](ANALYSIS.md).
+
 ## What's in here
 
 | File | What it is |
